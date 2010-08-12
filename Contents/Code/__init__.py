@@ -20,9 +20,8 @@ class WikipediaAgent(Agent.Movies):
       if len(jsonObj) > 0:
         url = jsonObj[0]['unescapedUrl']
         if url.count('wikipedia.org') > 0:
-          Log(url)
           results.Append(MetadataSearchResult(
-            id    = url.split('/')[-1],
+            id    = url.split('/')[-1].replace('&','%26'),
             score = 100
           ))
         
