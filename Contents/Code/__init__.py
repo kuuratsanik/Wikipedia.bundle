@@ -22,13 +22,16 @@ class WikipediaAgent(Agent.Movies):
         if url.count('wikipedia.org') > 0:
           results.Append(MetadataSearchResult(
             id    = url.split('/')[-1].replace('&','%26'),
-            score = 100
-          ))
+            score = 100))
         
   def update(self, metadata, media, lang):
 
     jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % metadata.id)['query']['pages']
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
+    if rev[0]['*'].count('#REDIRECT [[') > 0:
+      redirect = rev[0]['*'][rev[0]['*'].find('[[') + 2:rev[0]['*'].find(']]')]
+      jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % redirect)['query']['pages']
+      rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
     page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
     summary = page.split("}}\n'''''")[1].split('\n==')[0]
     
@@ -70,6 +73,6 @@ class WikipediaAgent(Agent.Movies):
     for r in replaceStrs:
       summary = summary.replace(r,"")
     
-    summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ')
+    summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
     
     metadata.summary = summary
