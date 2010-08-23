@@ -1,5 +1,4 @@
 #wikipedia movie summary agent
-
 import re
 
 GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=%s'   #[might want to look into language/country stuff at some point] param info here: http://code.google.com/apis/ajaxsearch/documentation/reference.html
@@ -51,13 +50,20 @@ class WikipediaAgent(Agent.Movies):
                 if abs(ambig_year - imdb_year) < closestYear:
                   closestYear = abs(ambig_year - imdb_year)
                   url = l.replace(' ','_')
+            
+          #grab page and confirm we have the imdb link there, else reduce the score below the threshold
+          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
+          rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions'][0]['*']
+          score = 100
+          if rev.count(media.primary_metadata.id.replace('tt','')) == 0:
+            score = score - 20
+            Log('********* NO IMDB ID MATCH, REDUCING SCORE')
 
           results.Append(MetadataSearchResult(
             id    = url,
-            score = 100))
+            score = score))
         
   def update(self, metadata, media, lang):
-    Log(metadata.id)
     jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % metadata.id)['query']['pages']
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
 
