@@ -1,3 +1,7 @@
+#wikipedia movie summary agent
+
+import re
+
 GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=%s'   #[might want to look into language/country stuff at some point] param info here: http://code.google.com/apis/ajaxsearch/documentation/reference.html
 WIKIPEDIA_JSON_URL = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles=%s&rvprop=content&format=json'
 #BING_JSON_URL   = 'http://api.bing.net/json.aspx?AppId=879000C53DA17EA8DB4CD1B103C00243FD0EFEE8&Version=2.2&Query=%s&Sources=web&Web.Count=8&JsonType=raw'
@@ -20,22 +24,46 @@ class WikipediaAgent(Agent.Movies):
       if len(jsonObj) > 0:
         url = jsonObj[0]['unescapedUrl']
         if url.count('wikipedia.org') > 0:
+          url = url.split('/')[-1].replace('&','%26')
+          
+          imdb_year = media.primary_metadata.year
+
+          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
+          rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
+          
+          #check for a redirect link
+          if rev[0]['*'].count('#REDIRECT [[') > 0:
+            url = rev[0]['*'][rev[0]['*'].find('[[') + 2:rev[0]['*'].find(']]')]
+            
+          #check for disambiguation
+          elif rev[0]['*'].count("In '''movies''':") > 0:
+            page = rev[0]['*'].split("In '''movies''':\n")[-1]
+            page = page.split("\nIn '''")[0]
+            closestYear = 999
+            bestMatch = ''
+            ambigLines = page.split('\n')
+            for l in ambigLines:
+              l = l.split(']]')[0].split('|')[0].split('[[')[-1]
+              pattern = re.compile("([12][0-9]{3}) film")
+              m = pattern.search(l)
+              if m:
+                ambig_year = int((m.group(1)))
+                if abs(ambig_year - imdb_year) < closestYear:
+                  closestYear = abs(ambig_year - imdb_year)
+                  url = l.replace(' ','_')
+
           results.Append(MetadataSearchResult(
-            id    = url.split('/')[-1].replace('&','%26'),
+            id    = url,
             score = 100))
         
   def update(self, metadata, media, lang):
-
+    Log(metadata.id)
     jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % metadata.id)['query']['pages']
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
-    if rev[0]['*'].count('#REDIRECT [[') > 0:
-      redirect = rev[0]['*'][rev[0]['*'].find('[[') + 2:rev[0]['*'].find(']]')]
-      jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % redirect)['query']['pages']
-      rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
+
     page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
     summary = page.split("}}\n'''''")[1].split('\n==')[0]
     
-    Log(summary)
     #remove the external links
     while summary.find('({{') > 0:
       removeStart = summary.find('({{')
@@ -53,9 +81,7 @@ class WikipediaAgent(Agent.Movies):
     #remove reference tags
     while summary.find('<ref>') > 0:
       removeStart = summary.find('<ref')
-      Log("rS: " + str(removeStart))
       removeEnd = summary.find('</ref>')
-      Log("rE:" + str(removeEnd))
       if removeEnd == -1:
         break
       summary = summary[:removeStart] + summary[removeEnd + 6:]

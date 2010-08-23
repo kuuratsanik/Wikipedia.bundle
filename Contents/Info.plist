@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>IMDB</string>
+	<string>Wikipedia</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.plexapp.agents.wikipedia</string>
 	<key>CFBundleInfoDictionaryVersion</key>
