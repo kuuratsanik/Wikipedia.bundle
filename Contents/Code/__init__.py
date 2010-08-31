@@ -20,6 +20,7 @@ class WikipediaAgent(Agent.Movies):
     jsonObj = JSON.ObjectFromURL(GOOGLE_JSON_URL % String.Quote('"' + normalizedName + '" film site:wikipedia.org', usePlus=True))
     if jsonObj['responseData'] != None:
       jsonObj = jsonObj['responseData']['results']
+      page = ''
       if len(jsonObj) > 0:
         url = jsonObj[0]['unescapedUrl']
         if url.count('wikipedia.org') > 0:
@@ -37,13 +38,16 @@ class WikipediaAgent(Agent.Movies):
           #check for disambiguation
           elif rev[0]['*'].count("In '''movies''':") > 0:
             page = rev[0]['*'].split("In '''movies''':\n")[-1]
+          elif rev[0]['*'].count("In '''modern culture''':"):
+            page = rev[0]['*'].split("In '''modern culture''':\n")[-1]
+          if page != '':
             page = page.split("\nIn '''")[0]
             closestYear = 999
             bestMatch = ''
             ambigLines = page.split('\n')
             for l in ambigLines:
               l = l.split(']]')[0].split('|')[0].split('[[')[-1]
-              pattern = re.compile("([12][0-9]{3}) film")
+              pattern = re.compile("([12][0-9]{3}) [a-z0-9\s]* film", re.IGNORECASE)
               m = pattern.search(l)
               if m:
                 ambig_year = int((m.group(1)))
