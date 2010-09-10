@@ -68,7 +68,7 @@ class WikipediaAgent(Agent.Movies):
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
 
     page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
-    summary = page.split("}}\n'''''")[1].split('\n==')[0]
+    summary = page.split("\n'''''")[1].split('\n==')[0]
     
     #remove the external links
     while summary.find('({{') > 0:
@@ -106,5 +106,77 @@ class WikipediaAgent(Agent.Movies):
       summary = summary.replace(r,"")
     
     summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
-    
     metadata.summary = summary
+    
+    # Get other data.
+    page = rev[0]['*']
+    
+    # Directors.
+    directors = self.getValues(page, 'director')
+    if len(directors) > 0:
+      metadata.directors.clear()
+      metadata.directors.add(directors[0])
+    
+    # Cast.
+    starring = self.getValues(page, 'starring')
+    if len(starring) > 0:
+      metadata.roles.clear()
+      for member in starring:
+        role = metadata.roles.new()
+        role.actor = member
+    
+    # Distributor.
+    distributor = self.getValues(page, 'distributor')
+    if len(distributor) > 0:
+      metadata.studio = distributor[0]
+    
+    # Poster.
+    image = self.getValues(page, 'image')
+    if len(image) > 0:
+      path = 'http://en.wikipedia.org/wiki/File:' + image[0]
+      #data = HTTP.Request(path)
+      #if image[0] not in metadata.posters:
+      #  metadata.posters[image[0]] = Proxy.Media(data)
+      
+    writers = self.getValues(page, 'writer')
+    released = self.getValues(page, 'released')
+    runtime = self.getValues(page, 'runtime')
+      
+  def getValues(self, page, name):
+  
+    regexps = ['[ ]+=[\t ]+(.*?)\n\|', '[ ]+=[\t ]+(.*?)\|\n']
+    for r in regexps:
+      rx = re.compile(name + r, re.IGNORECASE|re.DOTALL|re.MULTILINE)
+      m1 = rx.search(page)
+      if m1:
+        value = m1.groups()[0]
+
+        if value[0:5].lower() == '{{ubl' or value.find('{{Unbulleted list') == 0:
+          value = value.split('|')[1:]
+        elif value.find('<br />') != -1:
+          value = value.split('<br />')
+        elif value.find('<br>') != -1:
+          value = value.split('<br>')
+        elif value.find('<br \\/>') != -1:
+          value = value.split('<br \\/>')
+        else:
+          value = [value]
+
+        break
+
+    nuke = ['[[',']]','}}','{{']
+    ret = []
+    for v in value:
+      for n in nuke:
+        v = v.replace(n, '')
+        if v.find('|') != -1 and v.find('date|') == -1:
+          v = v.split('|')[1]
+        v = re.sub('<[^>]+>', '', v)
+        v = v.strip()
+        v = v.strip(',')
+      
+      if v.find("'''") == -1:
+        ret.append(v)
+    
+    return ret
+    
