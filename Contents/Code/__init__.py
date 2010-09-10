@@ -35,7 +35,7 @@ class WikipediaAgent(Agent.Movies):
             url = rev[0]['*'][rev[0]['*'].find('[[') + 2:rev[0]['*'].find(']]')]
             
           #check for disambiguation
-          elif rev[0]['*'].count("In '''movies''':") > 0:
+          elif rev[0]['*'].count("In '''movies''':") > 0 or rev[0]['*'].count('{{disambig}}') > 0:
             page = rev[0]['*'].split("In '''movies''':\n")[-1]
             page = page.split("\nIn '''")[0]
             closestYear = 999
@@ -68,45 +68,50 @@ class WikipediaAgent(Agent.Movies):
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
 
     page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
-    summary = page.split("\n'''''")[1].split('\n==')[0]
     
-    #remove the external links
-    while summary.find('({{') > 0:
-      removeStart = summary.find('({{')
-      removeEnd = summary.find('}})')
-      if removeEnd == -1:
-        break
-      summary = summary[:removeStart] + summary[removeEnd + 3:]    
-    while summary.find('{{') > 0:
-      removeStart = summary.find('{{')
-      removeEnd = summary.find('}}')
-      if removeEnd == -1:
-        break
-      summary = summary[:removeStart] + summary[removeEnd + 2:]
+    try:
+      summary = page.split("\n'''''")[1].split('\n==')[0]
     
-    #remove reference tags
-    while summary.find('<ref>') > 0:
-      removeStart = summary.find('<ref')
-      removeEnd = summary.find('</ref>')
-      if removeEnd == -1:
-        break
-      summary = summary[:removeStart] + summary[removeEnd + 6:]
+      #remove the external links
+      while summary.find('({{') > 0:
+        removeStart = summary.find('({{')
+        removeEnd = summary.find('}})')
+        if removeEnd == -1:
+          break
+        summary = summary[:removeStart] + summary[removeEnd + 3:]    
+      while summary.find('{{') > 0:
+        removeStart = summary.find('{{')
+        removeEnd = summary.find('}}')
+        if removeEnd == -1:
+          break
+        summary = summary[:removeStart] + summary[removeEnd + 2:]
+    
+      #remove reference tags
+      while summary.find('<ref>') > 0:
+        removeStart = summary.find('<ref')
+        removeEnd = summary.find('</ref>')
+        if removeEnd == -1:
+          break
+        summary = summary[:removeStart] + summary[removeEnd + 6:]
             
-    #remove the | stuff
-    while summary.find('|') > 0:
-      firstBar = summary.find('|')
-      removeStart = summary[:firstBar].rfind('[[')
-      if removeStart == -1:
-        break
-      summary = summary[:removeStart] + summary[firstBar+1:]
+      #remove the | stuff
+      while summary.find('|') > 0:
+        firstBar = summary.find('|')
+        removeStart = summary[:firstBar].rfind('[[')
+        if removeStart == -1:
+          break
+        summary = summary[:removeStart] + summary[firstBar+1:]
     
-    #remove everything else
-    replaceStrs = "'''''","''''","'''","''","[[","]]"
-    for r in replaceStrs:
-      summary = summary.replace(r,"")
+      #remove everything else
+      replaceStrs = "'''''","''''","'''","''","[[","]]"
+      for r in replaceStrs:
+        summary = summary.replace(r,"")
     
-    summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
-    metadata.summary = summary
+      summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
+      metadata.summary = summary
+      
+    except:
+      Log('Error parsing summary for ' + metadata.id)
     
     # Get other data.
     page = rev[0]['*']
@@ -139,11 +144,38 @@ class WikipediaAgent(Agent.Movies):
       #  metadata.posters[image[0]] = Proxy.Media(data)
       
     writers = self.getValues(page, 'writer')
-    released = self.getValues(page, 'released')
     runtime = self.getValues(page, 'runtime')
+
+    # Release date.
+    released = self.getValues(page, 'released')
+    if len(released) > 0:
+      availableAt = None
+      date = released[0]
+      
+      # Clean up.
+      if len(released) > 4 and released[0].find('date') != -1:
+        date = '-'.join(released[1:4])
+        
+      date = re.sub('\(.*\)', '', date)
+      
+      try:
+        availableAt = Datetime.ParseDate(date)
+      except:
+        m = re.search(r'([0-9]{4})\|([0-9]{1,2})\|([0-9]{1,2})', date)
+        if m:
+          s = '%s-%s-%s' % (m.groups(1)[0], m.groups(1)[1], m.groups(1)[2])
+          availableAt = Datetime.ParseDate(s)
+        else:
+          Log("No match for date: " + date)
+        
+      parent_metadata = metadata.contribution('com.plexapp.agents.imdb')
+      if availableAt and parent_metadata is not None and abs(availableAt.year - parent_metadata.year) <= 1:
+        metadata.originally_available_at = availableAt.date()
+        metadata.year = availableAt.year
       
   def getValues(self, page, name):
   
+    value = None
     regexps = ['[ ]+=[\t ]+(.*?)\n\|', '[ ]+=[\t ]+(.*?)\|\n']
     for r in regexps:
       rx = re.compile(name + r, re.IGNORECASE|re.DOTALL|re.MULTILINE)
@@ -163,20 +195,22 @@ class WikipediaAgent(Agent.Movies):
           value = [value]
 
         break
-
-    nuke = ['[[',']]','}}','{{']
-    ret = []
-    for v in value:
-      for n in nuke:
-        v = v.replace(n, '')
-        if v.find('|') != -1 and v.find('date|') == -1:
-          v = v.split('|')[1]
-        v = re.sub('<[^>]+>', '', v)
-        v = v.strip()
-        v = v.strip(',')
+    
+    ret = []    
+    if value is not None:
+      nuke = ['[[',']]','}}','{{']
+    
+      for v in value:
+        for n in nuke:
+          v = v.replace(n, '')
+          if v.find('|') != -1 and v.find('date|') == -1:
+            v = v.split('|')[1]
+          v = re.sub('<[^>]+>', '', v)
+          v = v.strip()
+          v = v.strip(',')
       
-      if v.find("'''") == -1:
-        ret.append(v)
+        if v.find("'''") == -1:
+          ret.append(v)
     
     return ret
     
