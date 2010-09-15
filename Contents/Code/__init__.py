@@ -5,6 +5,9 @@ GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz
 WIKIPEDIA_JSON_URL = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles=%s&rvprop=content&format=json'
 #BING_JSON_URL   = 'http://api.bing.net/json.aspx?AppId=879000C53DA17EA8DB4CD1B103C00243FD0EFEE8&Version=2.2&Query=%s&Sources=web&Web.Count=8&JsonType=raw'
 
+#001: Vesmírná odysea (film)]] [[da:Rumrejsen år 2001]] [[de:2001: Odyssee im Weltraum]] [[es:2001: A Space Odyssey (película)]] [[eo:2001: A Space Odyssey (filmo)]] [[fa:۲۰۰۱: اودیسه #فضایی (فیلم)]] [[fr:2001, l'Odyssée de l'espace]] [[gl:2001: A Space Odyssey]] [[ko:2001 스페이스 오디세이]] [[hr:2001: Odiseja u svemiru (1968)]] [[io:2001, spac-odiseo]] [[id:2001: A Space Odyssey]] [[is:2001: Geimævintýraferð]] [[it:2001: Odissea nello spazio]] [[he:2001: אודיסיאה בחלל]] [[la:2001: A Space Odyssey]] [[lv:2001: Kosmosa odiseja (filma)]] [[lt:2001 m. kosminė odisėja]] [[hu:2001: Űrodüsszeia]] [[mk:2001: Вселенска одисеја (филм)]] [[nl:2001: A Space Odyssey]] [[ja:2001年宇宙の旅]] [[no:2001: En romodyssé]] [[pa:੨੦੦੧:ਸਪੇਸ ਓਡੇਸੀ]] [[nds:2001: A Space Odyssey]] [[pl:2001: Odyseja kosmiczna (film)]] [[pt:2001: A Space Odyssey]] [[ro:2001: O odisee spațială (film)]] [[qu:2001: A Space Odyssey]] [[ru:Космическая одиссея 2001 года]] [[simple:2001: A Space Odyssey]] [[sk:2001: Vesmírna odysea]] [[sl:2001: Vesoljska odiseja (film)]] [[sr:2001: Одисеја у свемиру]] [[sh:2001: Odiseja u svemiru (1968)]] [[fi:2001: Avaruusseikkailu (elokuva)]] [[sv:2001 - Ett rymdäventyr (film)]] [[th:2001 จอมจักรวาล (ภาพยนตร์)]] [[tr:2001: Bir Uzay Destanı (film)]] [[uk:Космічна одіссея 2001 року (фільм)]] [[zh:2001太空漫遊 (電影)]]
+
+
 def Start():
   HTTP.CacheTime = CACHE_1WEEK
   
@@ -29,29 +32,28 @@ class WikipediaAgent(Agent.Movies):
 
           jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
           rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
-          
-          #check for a redirect link
+
+          # Check for a redirect link
           if rev[0]['*'].count('#REDIRECT [[') > 0:
             url = rev[0]['*'][rev[0]['*'].find('[[') + 2:rev[0]['*'].find(']]')]
             
-          #check for disambiguation
+          # Check for disambiguation
           elif rev[0]['*'].count("In '''movies''':") > 0 or rev[0]['*'].count('{{disambig}}') > 0:
             page = rev[0]['*'].split("In '''movies''':\n")[-1]
-            page = page.split("\nIn '''")[0]
+            matches = re.findall('\[\[(.*film.*)\|', page)
+            
             closestYear = 999
             bestMatch = ''
-            ambigLines = page.split('\n')
-            for l in ambigLines:
-              l = l.split(']]')[0].split('|')[0].split('[[')[-1]
-              pattern = re.compile("([12][0-9]{3}) film")
-              m = pattern.search(l)
+
+            for match in matches:
+              m = re.search("([12][0-9]{3}) film", match)
               if m:
                 ambig_year = int((m.group(1)))
                 if abs(ambig_year - imdb_year) < closestYear:
                   closestYear = abs(ambig_year - imdb_year)
-                  url = l.replace(' ','_')
-            
-          #grab page and confirm we have the imdb link there, else reduce the score below the threshold
+                  url = match.replace(' ','_')
+
+          # Grab page and confirm we have the imdb link there, else reduce the score below the threshold
           jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
           rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions'][0]['*']
           score = 100
@@ -66,7 +68,6 @@ class WikipediaAgent(Agent.Movies):
   def update(self, metadata, media, lang):
     jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % metadata.id)['query']['pages']
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
-
     page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
     
     try:
