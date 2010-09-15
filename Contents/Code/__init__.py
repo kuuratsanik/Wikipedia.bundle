@@ -2,11 +2,8 @@
 import re
 
 GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=%s'   #[might want to look into language/country stuff at some point] param info here: http://code.google.com/apis/ajaxsearch/documentation/reference.html
-WIKIPEDIA_JSON_URL = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles=%s&rvprop=content&format=json'
+WIKIPEDIA_JSON_URL = 'http://%s.wikipedia.org/w/api.php?action=query&prop=revisions&titles=%s&rvprop=content&format=json'
 #BING_JSON_URL   = 'http://api.bing.net/json.aspx?AppId=879000C53DA17EA8DB4CD1B103C00243FD0EFEE8&Version=2.2&Query=%s&Sources=web&Web.Count=8&JsonType=raw'
-
-#001: Vesmírná odysea (film)]] [[da:Rumrejsen år 2001]] [[de:2001: Odyssee im Weltraum]] [[es:2001: A Space Odyssey (película)]] [[eo:2001: A Space Odyssey (filmo)]] [[fa:۲۰۰۱: اودیسه #فضایی (فیلم)]] [[fr:2001, l'Odyssée de l'espace]] [[gl:2001: A Space Odyssey]] [[ko:2001 스페이스 오디세이]] [[hr:2001: Odiseja u svemiru (1968)]] [[io:2001, spac-odiseo]] [[id:2001: A Space Odyssey]] [[is:2001: Geimævintýraferð]] [[it:2001: Odissea nello spazio]] [[he:2001: אודיסיאה בחלל]] [[la:2001: A Space Odyssey]] [[lv:2001: Kosmosa odiseja (filma)]] [[lt:2001 m. kosminė odisėja]] [[hu:2001: Űrodüsszeia]] [[mk:2001: Вселенска одисеја (филм)]] [[nl:2001: A Space Odyssey]] [[ja:2001年宇宙の旅]] [[no:2001: En romodyssé]] [[pa:੨੦੦੧:ਸਪੇਸ ਓਡੇਸੀ]] [[nds:2001: A Space Odyssey]] [[pl:2001: Odyseja kosmiczna (film)]] [[pt:2001: A Space Odyssey]] [[ro:2001: O odisee spațială (film)]] [[qu:2001: A Space Odyssey]] [[ru:Космическая одиссея 2001 года]] [[simple:2001: A Space Odyssey]] [[sk:2001: Vesmírna odysea]] [[sl:2001: Vesoljska odiseja (film)]] [[sr:2001: Одисеја у свемиру]] [[sh:2001: Odiseja u svemiru (1968)]] [[fi:2001: Avaruusseikkailu (elokuva)]] [[sv:2001 - Ett rymdäventyr (film)]] [[th:2001 จอมจักรวาล (ภาพยนตร์)]] [[tr:2001: Bir Uzay Destanı (film)]] [[uk:Космічна одіссея 2001 року (фільм)]] [[zh:2001太空漫遊 (電影)]]
-
 
 def Start():
   HTTP.CacheTime = CACHE_1WEEK
@@ -30,7 +27,7 @@ class WikipediaAgent(Agent.Movies):
           
           imdb_year = media.primary_metadata.year
 
-          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
+          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % ('en', url))['query']['pages']
           rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
 
           # Check for a redirect link
@@ -54,7 +51,7 @@ class WikipediaAgent(Agent.Movies):
                   url = match.replace(' ','_')
 
           # Grab page and confirm we have the imdb link there, else reduce the score below the threshold
-          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % url)['query']['pages']
+          jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % ('en', url))['query']['pages']
           rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions'][0]['*']
           score = 100
           if rev.count(media.primary_metadata.id.replace('tt','')) == 0:
@@ -66,12 +63,54 @@ class WikipediaAgent(Agent.Movies):
             score = score))
         
   def update(self, metadata, media, lang):
-    jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % metadata.id)['query']['pages']
-    rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
-    page = rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''")
+    (rev, page) = self.getPage(metadata.id, 'en')
+    
+    # Get the specific language page if not english.
+    if lang != 'en':
+      languages = re.findall('\[\[(([a-z]{2}):.*?)\]\]', page)
+      lang_map = {}
+      for (link, language) in languages:
+        lang_map[language] = link
+      
+      if lang_map.has_key(lang):
+        (rev, page) = self.getPage(lang_map[lang][3:].replace(' ','_'), lang)
     
     try:
-      summary = page.split("\n'''''")[1].split('\n==')[0]
+      level = 0
+      done = False
+      index = 0
+      
+      while not done:
+        open = page.find('{{', index)
+        close = page.find('}}', index)
+        
+        # Manage levels.
+        if open != -1 and open < close:
+          level = level + 1
+          index = open + 2
+        elif close != -1:
+          level = level - 1
+          index = close + 2
+
+        # See if we're done.
+        if level == 0 and page[index:index+4].strip()[0:2] != '{{':
+          break
+          
+        # Safety in case something goes wrong.
+        if level > 20:
+          break
+          
+      end = page.find('==', index)
+      if end != -1:
+        summary = page[index+2:end].strip().strip(":")
+      
+      #summary = page.split("\n'''''")[1].split('\n==')[0]
+      #match = re.search('}}(.*?)==', page, re.MULTILINE|re.DOTALL)
+      #if match:
+      #  summary = match.groups(1)[0]
+      #  print "SUMMARY", summary
+      #else:
+      #  print "NO"
     
       #remove the external links
       while summary.find('({{') > 0:
@@ -107,6 +146,8 @@ class WikipediaAgent(Agent.Movies):
       replaceStrs = "'''''","''''","'''","''","[[","]]"
       for r in replaceStrs:
         summary = summary.replace(r,"")
+    
+      # FIXME, need to resolve these: -{zh-hans:港译《侠盗·骄雄》; zh-hant:香港譯《俠盜·驕雄》; zh-hk:中國大陸及台灣均譯《羅賓漢》;}-
     
       summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
       metadata.summary = summary
@@ -174,8 +215,13 @@ class WikipediaAgent(Agent.Movies):
         metadata.originally_available_at = availableAt.date()
         metadata.year = availableAt.year
       
+  def getPage(self, id, lang):
+    print "Getting page [%s]" % id
+    jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % (lang, id))['query']['pages']
+    rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
+    return (rev, rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''"))
+      
   def getValues(self, page, name):
-  
     value = None
     regexps = ['[ ]+=[\t ]+(.*?)\n\|', '[ ]+=[\t ]+(.*?)\|\n']
     for r in regexps:
