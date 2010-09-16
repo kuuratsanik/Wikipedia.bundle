@@ -84,11 +84,15 @@ class WikipediaAgent(Agent.Movies):
         open = page.find('{{', index)
         close = page.find('}}', index)
         
+        # Doesn't start with an open.
+        if index == 0 and open > 5:
+          break
+        
         # Manage levels.
         if open != -1 and open < close:
           level = level + 1
           index = open + 2
-        elif close != -1:
+        elif close != -1 and level > 0:
           level = level - 1
           index = close + 2
 
