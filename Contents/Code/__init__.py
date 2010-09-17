@@ -55,8 +55,12 @@ class WikipediaAgent(Agent.Movies):
           rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions'][0]['*']
           score = 100
           if rev.count(media.primary_metadata.id.replace('tt','')) == 0:
-            score = score - 20
-            Log('********* NO IMDB ID MATCH, REDUCING SCORE')
+            score = score - 25
+            Log('No link to movie, penalizing.')
+            
+            if rev.count('Infobox actor') > 0:
+              Log('Looks like an actor page, penalizing appropriately.')
+              score = score - 10
 
           results.Append(MetadataSearchResult(
             id    = url,
