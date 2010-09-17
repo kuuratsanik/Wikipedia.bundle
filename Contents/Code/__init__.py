@@ -116,7 +116,7 @@ class WikipediaAgent(Agent.Movies):
           
       end = page.find('==', index)
       if end != -1:
-        summary = page[index+2:end].strip().strip(":")
+        summary = page[index+1:end].strip().strip(":")
       
       #summary = page.split("\n'''''")[1].split('\n==')[0]
       #match = re.search('}}(.*?)==', page, re.MULTILINE|re.DOTALL)
