@@ -80,6 +80,12 @@ class WikipediaAgent(Agent.Movies):
         (rev, page) = self.getPage(lang_map[lang][3:].replace(' ','_'), lang)
     
     try:
+      
+      # See if we need to take out any initial commentary.
+      m = re.search("''[^'].*?''([ ]<BR>)?", page)
+      if m.start(0) == 0:
+        page = page[m.end(0):]
+      
       level = 0
       done = False
       index = 0
