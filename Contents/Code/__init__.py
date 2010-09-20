@@ -86,6 +86,10 @@ class WikipediaAgent(Agent.Movies):
       if m.start(0) == 0:
         page = page[m.end(0):]
       
+      # More comments.
+      rx = re.compile("\n*<!--.*?-->\n*", re.DOTALL | re.MULTILINE)
+      page = rx.sub("", page)
+      
       level = 0
       done = False
       index = 0
@@ -117,49 +121,16 @@ class WikipediaAgent(Agent.Movies):
       end = page.find('==', index)
       if end != -1:
         summary = page[index+1:end].strip().strip(":")
-      
-      #summary = page.split("\n'''''")[1].split('\n==')[0]
-      #match = re.search('}}(.*?)==', page, re.MULTILINE|re.DOTALL)
-      #if match:
-      #  summary = match.groups(1)[0]
-      #  print "SUMMARY", summary
-      #else:
-      #  print "NO"
-    
-      #remove the external links
-      while summary.find('({{') > 0:
-        removeStart = summary.find('({{')
-        removeEnd = summary.find('}})')
-        if removeEnd == -1:
-          break
-        summary = summary[:removeStart] + summary[removeEnd + 3:]    
-      while summary.find('{{') > 0:
-        removeStart = summary.find('{{')
-        removeEnd = summary.find('}}')
-        if removeEnd == -1:
-          break
-        summary = summary[:removeStart] + summary[removeEnd + 2:]
-    
-      #remove reference tags
-      while summary.find('<ref>') > 0:
-        removeStart = summary.find('<ref')
-        removeEnd = summary.find('</ref>')
-        if removeEnd == -1:
-          break
-        summary = summary[:removeStart] + summary[removeEnd + 6:]
-            
-      #remove the | stuff
-      while summary.find('|') > 0:
-        firstBar = summary.find('|')
-        removeStart = summary[:firstBar].rfind('[[')
-        if removeStart == -1:
-          break
-        summary = summary[:removeStart] + summary[firstBar+1:]
-    
-      #remove everything else
+
+      # Remove external links.
+      summary = re.sub('\{\{.*?\}\}', '', summary)
+      summary = re.sub('<ref>.*?</ref>', '', summary)
+      summary = re.sub('\[\[.*?\|(.*?)\]\]', r'\g<1>', summary)
+
+      # Remove everything else
       replaceStrs = "'''''","''''","'''","''","[[","]]"
       for r in replaceStrs:
-        summary = summary.replace(r,"")
+        summary = summary.replace(r,'')
     
       # FIXME, need to resolve these: -{zh-hans:港译《侠盗·骄雄》; zh-hant:香港譯《俠盜·驕雄》; zh-hk:中國大陸及台灣均譯《羅賓漢》;}-
     
