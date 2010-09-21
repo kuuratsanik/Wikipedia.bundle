@@ -90,6 +90,10 @@ class WikipediaAgent(Agent.Movies):
       rx = re.compile("\n*<!--.*?-->\n*", re.DOTALL | re.MULTILINE)
       page = rx.sub("", page)
       
+      # Do we have an "official" start? Cheating, but helps us skip lots of stuff.
+      if page.find("'''''") != -1:
+        page = page[page.find("'''''"):]
+      
       level = 0
       done = False
       index = 0
