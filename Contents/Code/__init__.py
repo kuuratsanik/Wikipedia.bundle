@@ -205,7 +205,6 @@ class WikipediaAgent(Agent.Movies):
         metadata.year = availableAt.year
       
   def getPage(self, id, lang):
-    print "Getting page [%s]" % id
     jsonOBJ = JSON.ObjectFromURL(WIKIPEDIA_JSON_URL % (lang, id))['query']['pages']
     rev = jsonOBJ[jsonOBJ.keys()[0]]['revisions']
     return (rev, rev[0]['*'].replace("}}\n\n'''''", "}}\n'''''"))
