@@ -127,7 +127,8 @@ class WikipediaAgent(Agent.Movies):
         summary = page[index+1:end].strip().strip(":")
 
       # Remove external links.
-      summary = re.sub('\{\{.*?\}\}', '', summary)
+      rxExt = re.compile('\{\{.*?\}\}', re.DOTALL)
+      summary = rxExt.sub('', summary)
       summary = re.sub('<ref>.*?</ref>', '', summary)
 
       # Remove brackets from simple internal links like [[Link]]
@@ -144,7 +145,7 @@ class WikipediaAgent(Agent.Movies):
     
       # FIXME, need to resolve these: -{zh-hans:港译《侠盗·骄雄》; zh-hant:香港譯《俠盜·驕雄》; zh-hk:中國大陸及台灣均譯《羅賓漢》;}-
     
-      summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').strip()
+      summary = String.StripTags(summary).replace('&nbsp;',' ').replace('  ',' ').replace(' ,', ',').strip()
       metadata.summary = summary
       
     except:
