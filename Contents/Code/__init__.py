@@ -141,7 +141,7 @@ class WikipediaAgent(Agent.Movies):
       for r in replaceStrs:
         summary = summary.replace(r,'')
       # squeeze multiple spaces
-      summary = re.sub('\s{2,}', ' ', summary)
+      summary = re.sub(' {2,}', ' ', summary)
     
       # FIXME, need to resolve these: -{zh-hans:港译《侠盗·骄雄》; zh-hant:香港譯《俠盜·驕雄》; zh-hk:中國大陸及台灣均譯《羅賓漢》;}-
     
