@@ -129,6 +129,10 @@ class WikipediaAgent(Agent.Movies):
       # Remove external links.
       summary = re.sub('\{\{.*?\}\}', '', summary)
       summary = re.sub('<ref>.*?</ref>', '', summary)
+
+      # Remove brackets from simple internal links like [[Link]]
+      summary = re.sub('\[\[([^|]*?)\]\]', r'\g<1>', summary)
+      # Keep names from named internal links like [[Link|name]]
       summary = re.sub('\[\[.*?\|(.*?)\]\]', r'\g<1>', summary)
 
       # Remove everything else
