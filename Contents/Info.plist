@@ -20,5 +20,9 @@
 	<string>2</string>
 	<key>PlexPluginMode</key>
 	<string>AlwaysOn</string>
+	<key>PlexAgentAttributionText</key>
+  <string>
+    &lt;a href=&quot;http://en.wikipedia.com/&quot;&gt;Wikipedia&lt;/a&gt;, dual-licensed under the &lt;a href=&quot;http://en.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License&quot;&gt;Creative Commons Attribution-Sharealike 3.0 Unported License&lt;/a&gt; (CC-BY-SA) and the &lt;a href=&quot;http://www.gnu.org/copyleft/fdl.html&quot;&gt;GNU Free Documentation License&lt;/a&gt; (GFDL)
+  </string>
 </dict>
 </plist>
