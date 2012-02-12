@@ -225,6 +225,9 @@ class WikipediaAgent(Agent.Movies):
       if m1:
         value = m1.groups()[0]
 
+        if value.find('{{small|') != -1:
+          value = re.sub('\{\{small\|.+?\}\}', '', value)
+
         if value[0:5].lower() == '{{ubl' or value.find('{{Unbulleted list') == 0:
           value = value.split('|')[1:]
         elif value.find('<br />') != -1:
@@ -245,11 +248,12 @@ class WikipediaAgent(Agent.Movies):
       for v in value:
         for n in nuke:
           v = v.replace(n, '')
-          if v.find('|') != -1 and v.find('date|') == -1:
-            v = v.split('|')[1]
-          v = re.sub('<[^>]+>', '', v)
-          v = v.strip()
-          v = v.strip(',')
+
+        if v.find('|') != -1 and v.find('date|') == -1:
+          v = v.split('|')[1]
+        v = re.sub('<[^>]+>', '', v)
+        v = v.strip()
+        v = v.strip(',')
       
         if v.find("'''") == -1:
           ret.append(v)
