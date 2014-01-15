@@ -228,6 +228,11 @@ class WikipediaAgent(Agent.Movies):
         if value.find('{{small|') != -1:
           value = re.sub('\{\{small\|.+?\}\}', '', value)
 
+        if value.find('{{Plain list') == 0 or value.find('{{Plainlist') == 0:
+          value = value.split('\n')[1:-1]
+
+          break
+
         if value[0:5].lower() == '{{ubl' or value.find('{{Unbulleted list') == 0:
           value = value.split('|')[1:]
         elif value.find('<br />') != -1:
@@ -243,7 +248,7 @@ class WikipediaAgent(Agent.Movies):
     
     ret = []    
     if value is not None:
-      nuke = ['[[',']]','}}','{{']
+      nuke = ['[[',']]','}}','{{', ':* ', '* ']
     
       for v in value:
         for n in nuke:
